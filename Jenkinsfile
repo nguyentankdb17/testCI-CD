@@ -9,12 +9,6 @@ pipeline {
     }
 
     stages {
-        stage('Clone Source Code') {
-            steps {
-                git url: 'https://github.com/nguyentankdb17/testCI-CD.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
