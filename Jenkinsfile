@@ -190,7 +190,10 @@ spec:
     post {
         always {
             echo 'Pipeline đã kết thúc.'
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
     }
+
 }
