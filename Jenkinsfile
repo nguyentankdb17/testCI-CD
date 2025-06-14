@@ -1,27 +1,25 @@
 pipeline {
     agent {
-      kubernetes {
-        yaml '''
-            apiVersion: v1
-            kind: Pod
-            spec:
-              containers:
-              - name: docker
-                image: docker:20.10.21-dind
-                securityContext:
-                  privileged: true
-                command:
-                - dockerd-entrypoint.sh
-                args:
-                - --host=tcp://localhost:2375
-                - --host=unix:///var/run/docker.sock
-                tty: true
-              - name: jnlp
-                image: jenkins/inbound-agent:latest
-                args: ["$(JENKINS_SECRET)", "$(JENKINS_NAME)"]
-            '''
-        defaultContainer 'docker'
-      }
+        kubernetes {
+            yaml """
+                apiVersion: v1
+                kind: Pod
+                spec:
+                  containers:
+                  - name: kaniko
+                    image: gcr.io/kaniko-project/executor:latest
+                    command:
+                    - cat
+                    tty: true
+                    volumeMounts:
+                    - name: kaniko-secret
+                      mountPath: /kaniko/.docker
+                  volumes:
+                  - name: kaniko-secret
+                    secret:
+                      secretName: regcred
+                """
+        }
     }
 
     environment {
