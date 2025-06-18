@@ -13,7 +13,7 @@ spec:
   containers:
   # Container 1: Agent JNLP để kết nối với Jenkins Master
   - name: jnlp
-    image: jenkins/inbound-agent:alpine-jdk11
+    image: jenkins/inbound-agent:jdk17
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
     workingDir: /home/jenkins/agent
     volumeMounts:
