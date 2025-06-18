@@ -161,7 +161,7 @@ pipeline {
                     echo "Bắt đầu cập nhật kho chứa cấu hình K8s (CD-VDT)..."
                 
                     // Sử dụng SSH credentials
-                    sshagent(credentials: [GIT_SSH_CREDENTIALS_ID]) {
+                    sshagent(credentials: [GIT_CONFIG_REPO_CREDENTIALS_ID]) {
                         // Clone repo CD-VDT từ nhánh main qua SSH
                         sh "git clone -b main git@github.com:nguyentankdb17/CD-VDT.git cd-vdt-repo"
                 
