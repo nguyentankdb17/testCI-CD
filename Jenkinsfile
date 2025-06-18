@@ -162,6 +162,9 @@ pipeline {
                 
                     // Sử dụng SSH credentials
                     sshagent(credentials: [GIT_CONFIG_REPO_CREDENTIALS_ID]) {
+                        // Thêm vào known_hosts để tránh bị fail khi host-key checking
+                        sh 'mkdir -p ~/.ssh'
+                        sh 'ssh-keyscan github.com >> ~/.ssh/known_hosts'
                         // Clone repo CD-VDT từ nhánh main qua SSH
                         sh "git clone -b main git@github.com:nguyentankdb17/CD-VDT.git cd-vdt-repo"
                 
