@@ -7,52 +7,52 @@ pipeline {
         kubernetes {
             // Không sử dụng inheritFrom, định nghĩa toàn bộ Pod YAML
             yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  # Container 1: Agent JNLP để kết nối với Jenkins Master
-  - name: jnlp
-    image: jenkins/inbound-agent:jdk17
-    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    workingDir: /home/jenkins/agent
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-
-  # Container 2: Node.js để chạy install và test
-  - name: node
-    image: node:18-alpine
-    command: [sleep]
-    args: [9999999]
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-      
-  # Container 4: Kaniko để build image
-  # THAY ĐỔI: Sử dụng image 'debug' của Kaniko. Image này chứa shell và lệnh 'sleep'.
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug
-    imagePullPolicy: Always
-    command: [sleep]
-    args: [9999999]
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-    - name: docker-config
-      mountPath: /kaniko/.docker/
-  volumes:
-  # Volume để chia sẻ workspace giữa tất cả các container
-  - name: workspace-volume
-    emptyDir: {}
-  # Volume từ Secret để Kaniko xác thực với Docker Hub
-  - name: docker-config
-    secret:
-      secretName: dockerhub
-      items:
-        - key: .dockerconfigjson
-          path: config.json
-"""
+                apiVersion: v1
+                kind: Pod
+                spec:
+                  containers:
+                  # Container 1: Agent JNLP để kết nối với Jenkins Master
+                  - name: jnlp
+                    image: jenkins/inbound-agent:jdk17
+                    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+                    workingDir: /home/jenkins/agent
+                    volumeMounts:
+                    - name: workspace-volume
+                      mountPath: /home/jenkins/agent
+                
+                  # Container 2: Node.js để chạy install và test
+                  - name: node
+                    image: node:18-alpine
+                    command: [sleep]
+                    args: [9999999]
+                    volumeMounts:
+                    - name: workspace-volume
+                      mountPath: /home/jenkins/agent
+                      
+                  # Container 4: Kaniko để build image
+                  # THAY ĐỔI: Sử dụng image 'debug' của Kaniko. Image này chứa shell và lệnh 'sleep'.
+                  - name: kaniko
+                    image: gcr.io/kaniko-project/executor:debug
+                    imagePullPolicy: Always
+                    command: [sleep]
+                    args: [9999999]
+                    volumeMounts:
+                    - name: workspace-volume
+                      mountPath: /home/jenkins/agent
+                    - name: docker-config
+                      mountPath: /kaniko/.docker/
+                  volumes:
+                  # Volume để chia sẻ workspace giữa tất cả các container
+                  - name: workspace-volume
+                    emptyDir: {}
+                  # Volume từ Secret để Kaniko xác thực với Docker Hub
+                  - name: docker-config
+                    secret:
+                      secretName: dockerhub
+                      items:
+                        - key: .dockerconfigjson
+                          path: config.json
+                """
         }
     }
 
@@ -61,7 +61,7 @@ spec:
     environment {
         DOCKER_IMAGE_NAME = 'nguyentankdb17/cicd'
         GIT_CONFIG_REPO_CREDENTIALS_ID = 'github'
-        GIT_CONFIG_REPO_URL = 'https://github.com/nguyentankdb17/CI-CD'
+        GIT_CONFIG_REPO_URL = 'https://github.com/nguyentankdb17/CD-VDT'
         // Thêm URL và token của SonarQube. Lấy token từ giao diện SonarQube
         // và lưu nó vào Jenkins Credentials dạng 'Secret text'
         // SONAR_HOST_URL = 'http://sonarqube-svc.sonarqube.svc.cluster.local:9000'
@@ -157,32 +157,34 @@ spec:
                 script {
                     def gitCommit = sh(script: 'git rev-parse HEAD', returnStdout: true).trim().substring(0, 8)
                     def dockerImageTag = "${DOCKER_IMAGE_NAME}:${gitCommit}"
-
+                
                     echo "Bắt đầu cập nhật kho chứa cấu hình K8s (CD-VDT)..."
-                    // Sử dụng credentials để có quyền push vào repo GitHub
-                    withCredentials([usernamePassword(credentialsId: GIT_CONFIG_REPO_CREDENTIALS_ID, variable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                        // Clone repo CD-VDT từ nhánh main vào thư mục cd-vdt-repo
-                        sh "git clone -b main https://${GIT_USER}:${GIT_PASS}@github.com/nguyentankdb17/CD-VDT.git cd-vdt-repo"
-                        
-                        // Di chuyển vào thư mục repo vừa clone
+                
+                    // Sử dụng SSH credentials
+                    sshagent(credentials: [GIT_SSH_CREDENTIALS_ID]) {
+                        // Clone repo CD-VDT từ nhánh main qua SSH
+                        sh "git clone -b main git@github.com:nguyentankdb17/CD-VDT.git cd-vdt-repo"
+                
                         dir('cd-vdt-repo') {
                             echo "Đang cập nhật image tag trong app/deployment.yaml thành ${dockerImageTag}"
-                            // Cập nhật file deployment.yaml trong thư mục app
+                            
+                            // Cập nhật file deployment.yaml
                             sh "sed -i 's|image: .*|image: ${dockerImageTag}|g' app/deployment.yaml"
-                            
+                
                             // Cấu hình git user
-                            sh "git config user.email 'jenkins@example.com'"
-                            sh "git config user.name 'Jenkins CI'"
-                            
-                            // Thêm file đã sửa đổi vào staging
+                            sh "git config user.email 'nguyentankdb17@gmail.com'"
+                            sh "git config user.name 'nguyentankdb17'"
+                
+                            // Commit và push thay đổi
                             sh "git add app/deployment.yaml"
                             sh "git commit -m 'ci: Cập nhật image tag lên ${gitCommit}'"
-                            // Đẩy thay đổi lên nhánh main của repo
                             sh "git push origin main"
                         }
                     }
+                
                     echo "Cập nhật kho chứa cấu hình K8s thành công."
                 }
+
             }
         }
     }
